@@ -30,17 +30,20 @@ import { join, dirname } from "path";
 // ─── Reassembly mode ────────────────────────────────────────────────────────
 
 if (process.argv[2] === "--reassemble") {
-  const splitDir = process.argv[3];
-  const outFile = process.argv[4] || join(splitDir, "..", "reassembled.js");
+  const args = process.argv.slice(3);
+  const noBunCjs = args.includes("--no-bun-cjs");
+  const positional = args.filter(a => a !== "--no-bun-cjs");
+  const splitDir = positional[0];
+  const outFile = positional[1] || join(splitDir, "..", "reassembled.js");
   if (!splitDir) {
-    console.error("Usage: node resplit.mjs --reassemble <resplit-dir> [output-file]");
+    console.error("Usage: node resplit.mjs --reassemble <resplit-dir> [output-file] [--no-bun-cjs]");
     process.exit(1);
   }
-  reassemble(splitDir, outFile);
+  reassemble(splitDir, outFile, { noBunCjs });
   process.exit(0);
 }
 
-function reassemble(splitDir, outFile) {
+function reassemble(splitDir, outFile, opts = {}) {
   const manifestPath = join(splitDir, "manifest.json");
   if (!existsSync(manifestPath)) {
     console.error(`manifest.json not found in ${splitDir}`);
@@ -79,7 +82,14 @@ function reassemble(splitDir, outFile) {
   }
 
   const inner = parts.join("");
-  const wrapped = `// @bun @bytecode @bun-cjs\n(function(exports, require, module, __filename, __dirname) {${inner}})`;
+  let wrapped;
+  if (opts.noBunCjs) {
+    // Plain IIFE: avoids Bun's strict @bun-cjs byte-exact loader requirements
+    // and the @bytecode directive, which causes Bun to mis-parse reassembled source.
+    wrapped = `(function() {${inner}})();`;
+  } else {
+    wrapped = `// @bun @bytecode @bun-cjs\n(function(exports, require, module, __filename, __dirname) {${inner}})`;
+  }
 
   writeFileSync(outFile, wrapped);
   console.log(`Wrote ${(wrapped.length / 1024 / 1024).toFixed(1)}MB to ${outFile}`);
@@ -93,7 +103,7 @@ const outDir = process.argv[3] || "./resplit";
 
 if (!srcPath) {
   console.error("Usage: node resplit.mjs <bundle.js> [output-dir]");
-  console.error("       node resplit.mjs --reassemble <resplit-dir> [output-file]");
+  console.error("       node resplit.mjs --reassemble <resplit-dir> [output-file] [--no-bun-cjs]");
   process.exit(1);
 }
 
