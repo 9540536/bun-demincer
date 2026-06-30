@@ -17,5 +17,11 @@
     "lebab": "^3.2.0",
     "prettier": "^3.4.0",
     "recast": "^0.23.11"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  },
+  "scripts": {
+    "postinstall": "patch-package"
   }
 }

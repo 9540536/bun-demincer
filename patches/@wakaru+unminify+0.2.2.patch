@@ -1,0 +1,28 @@
+diff --git a/node_modules/@wakaru/unminify/dist/index.cjs b/node_modules/@wakaru/unminify/dist/index.cjs
+index 4e513c5..0feb7fe 100644
+--- a/node_modules/@wakaru/unminify/dist/index.cjs
++++ b/node_modules/@wakaru/unminify/dist/index.cjs
+@@ -63657,7 +63657,8 @@ var defaultOptions = {
+     // 'optionalCatchBinding',   // enabled by default
+     // 'optionalChaining',       // enabled by default
+     ["pipelineOperator", { proposal: "minimal" }],
+-    "throwExpressions"
++    "throwExpressions",
++    "explicitResourceManagement"
+   ]
+ };
+ function babylon_default(options = defaultOptions) {
+diff --git a/node_modules/@wakaru/unminify/dist/index.js b/node_modules/@wakaru/unminify/dist/index.js
+index 6dcd7ce..d35e73f 100644
+--- a/node_modules/@wakaru/unminify/dist/index.js
++++ b/node_modules/@wakaru/unminify/dist/index.js
+@@ -63657,7 +63657,8 @@ var defaultOptions = {
+     // 'optionalCatchBinding',   // enabled by default
+     // 'optionalChaining',       // enabled by default
+     ["pipelineOperator", { proposal: "minimal" }],
+-    "throwExpressions"
++    "throwExpressions",
++    "explicitResourceManagement"
+   ]
+ };
+ function babylon_default(options = defaultOptions) {
