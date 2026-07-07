@@ -15,10 +15,10 @@ Bun binary (opaque executable)
   → cluster modules by dependency graph (Louvain community detection)
   → organize into semantic directories
   → readable, organized source code
-  → reassemble back into a working binary (round-trip)
+  → reassemble back into a runnable bundle (round-trip)
 ```
 
-The deobfuscated code is not just readable — it's **runnable**. You can modify individual module files and reassemble them back into a working Bun binary.
+The deobfuscated code is not just readable — it's **runnable**. You can modify individual module files and reassemble them back into a runnable bundle executed with Bun.
 
 ## Quick start
 
@@ -64,21 +64,22 @@ Steps 1-4 are fully automated. Steps 5-8 organize the output into directories �
 
 ### Round-trip: reassemble and run
 
-After deobfuscating (and optionally modifying) individual module files, reassemble them back into a working binary:
+After deobfuscating (and optionally modifying) individual module files, reassemble them back into a runnable bundle:
 
 ```bash
 # Reassemble deobfuscated modules into a runnable bundle
-node scripts/build.mjs <version-dir> --source decoded --no-bun-cjs
+node src/resplit.mjs --reassemble decoded/ --no-bun-cjs
+#    → writes reassembled.js (one level above decoded/)
 
 # Run it
-cd <version-dir>/extracted && bun run.js --version
+bun reassembled.js --version
 ```
 
 The `--no-bun-cjs` flag wraps the code as a self-executing IIFE instead of relying on Bun's strict `@bun-cjs` CJS loader, which requires byte-exact formatting incompatible with any code transformation.
 
 ### With AI-assisted renaming (optional, improves readability)
 
-After step 4, before organizing:
+Requires a `GEMINI_API_KEY` (copy `.env.example` to `.env`). After step 4, before organizing:
 
 ```bash
 # Batch rename: send each module to an LLM, get all renames at once
@@ -142,10 +143,11 @@ The fingerprint DB (`data/vendor-fingerprints-1000.json`, 26MB) covers 23,746 fi
 ### Deobfuscation pipeline
 
 1. **wakaru** — structural transforms: `!0`→`true`, `void 0`→`undefined`, comma splitting
-2. **lebab** — ES5→ES6+ modernization (skipped by default — `var`→`let/const` causes cross-file collisions when reassembled)
-3. **extract** — auto-generate rename maps from `MR()` export mappings + `this.name`/`displayName` patterns
-4. **rename** — format-preserving AST rename via recast (only identifier bytes change, everything else stays byte-identical)
-5. **prettier** — consistent formatting
+2. **lebab** — ES5→ES6+ modernization (skipped by default — wakaru's internal lebab rule already handles the safe transforms)
+3. **extract** — auto-generate rename maps from `MR()` export mappings
+4. **extract-names** — auto-generate renames from `this.name`/`displayName` patterns
+5. **rename** — format-preserving AST rename via recast (only identifier bytes change, everything else stays byte-identical)
+6. **prettier** — consistent formatting
 
 Runtime files (`00-runtime.js`, `99-main.js`) are automatically excluded from wakaru/lebab/prettier. Identifiers declared in runtime files (Bun's module system globals like `h`, `v`, `y`, `MR`) are auto-excluded from renames — they're referenced by all modules including vendor.
 
@@ -188,10 +190,9 @@ After deobfuscation, modules are flat numbered files. The organization pipeline 
 | Script | Description |
 |--------|-------------|
 | `src/extract.mjs` | Parse Bun binary format, extract all embedded modules |
-| `src/resplit.mjs` | Split bundle into 1-module-per-file |
+| `src/resplit.mjs` | Split bundle into 1-module-per-file; `--reassemble` rebuilds a runnable bundle (`--no-bun-cjs`) |
 | `src/match-vendors.mjs` | Vendor classification: fingerprint DB + flood-fill. `--classify`, `--no-move` |
-| `src/deobfuscate.mjs` | Full pipeline: wakaru → lebab → extract → rename → prettier |
-| `build.mjs` (in project) | Reassemble modules into runnable bundle. `--no-bun-cjs`, `--run` |
+| `src/deobfuscate.mjs` | Full pipeline: wakaru → lebab → extract → extract-names → rename → prettier |
 
 ### Name Recovery
 
@@ -231,11 +232,13 @@ After deobfuscation, modules are flat numbered files. The organization pipeline 
 ## Project structure
 
 ```
-src/                    18 pipeline scripts (all standalone, no cross-imports)
+src/                    17 pipeline scripts (all standalone, no cross-imports)
 data/
-  vendor-fingerprints-1000.json   Vendor fingerprint DB (26MB, 1,668 packages)
+  vendor-fingerprints-1000.json   Vendor fingerprint DB (26MB, 23,746 files / 1,668 packages)
 docs/
   BUN.md                Bun bundler internals & deobfuscation strategies
+patches/                patch-package fixes (e.g. @wakaru/unminify ESM import)
+.env.example            GEMINI_API_KEY for AI-assisted renaming
 ```
 
 ## License
